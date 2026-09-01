@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ophotofinder</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--edge:#262b36;--fg:#e7e9ee;--dim:#98a1b3;--accent:#6ea8fe;--ok:#4ade80;--warn:#fbbf24;--err:#f87171;}
+@media (prefers-color-scheme:light){:root{--bg:#f6f7f9;--panel:#fff;--edge:#e2e5ea;--fg:#16181d;--dim:#5f6875;--accent:#2563eb;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--edge);background:var(--panel);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+h1{font-size:16px;margin:0;letter-spacing:.02em}
+h1 span{color:var(--dim);font-weight:400}
+.grow{flex:1}
+button,select,input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--edge);border-radius:8px;padding:8px 11px}
+button{cursor:pointer;background:var(--panel)}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+main{padding:20px;max-width:1500px;margin:0 auto}
+.searchbar{display:flex;gap:10px;margin-bottom:12px}
+.searchbar input{flex:1;padding:12px 14px;font-size:15px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--dim);margin-bottom:18px;font-size:13px}
+.filters input,.filters select{padding:6px 9px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.card img{width:100%;aspect-ratio:1;object-fit:cover;background:#000;cursor:zoom-in;display:block}
+.card .body{padding:10px 12px;font-size:12.5px}
+.card .name{font-weight:600;word-break:break-all}
+.card .cap{color:var(--fg);margin-top:6px}
+.card .nocap{color:var(--dim);font-style:italic;margin-top:6px}
+.card .meta{color:var(--dim);margin-top:7px;font-size:11.5px;display:flex;gap:8px;flex-wrap:wrap}
+.tag{border:1px solid var(--edge);border-radius:99px;padding:1px 8px}
+.ocr{color:var(--accent);margin-top:6px;font-size:11.5px;word-break:break-word}
+.panel{background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:16px;margin-bottom:18px}
+.panel h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.crumbs{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--dim);word-break:break-all}
+.dirlist{height:240px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--edge);border-radius:8px}
+.selected{border:1px solid var(--edge);border-radius:8px;padding:10px 12px;margin-top:12px;background:var(--bg)}
+.selected .crumbs{font-size:12.5px;color:var(--fg);margin-top:3px}
+#rootRow{min-height:34px}
+#pickNote:empty{display:none}
+.dirlist div{padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--edge);font-size:13px}
+.dirlist div:last-child{border-bottom:0}
+.dirlist div:hover{background:var(--bg)}
+.dirlist .bundle{color:var(--warn);cursor:not-allowed}
+.note{border-left:3px solid var(--warn);padding:9px 12px;margin:9px 0;background:var(--bg);border-radius:0 8px 8px 0;font-size:13px;color:var(--dim)}
+.note.err{border-color:var(--err)}
+.bar{height:6px;background:var(--bg);border-radius:99px;overflow:hidden;margin:9px 0}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.log{max-height:190px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--dim)}
+.log b{color:var(--ok);font-weight:400}.log b.bad{color:var(--warn)}.log b.err{color:var(--err)}
+.answer{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:18px;white-space:pre-wrap}
+.stat{color:var(--dim);font-size:12.5px}
+dialog{border:0;background:transparent;max-width:96vw;max-height:96vh;padding:0}
+dialog::backdrop{background:rgba(0,0,0,.85)}
+dialog img{max-width:92vw;max-height:88vh;border-radius:10px;display:block}
+dialog .cc{color:#ddd;font-size:12px;padding:8px 2px;max-width:92vw}
+.hidden{display:none}
+.tabs{display:flex;gap:4px;margin-right:6px}
+.tabs button{border-radius:8px;padding:7px 14px}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.album{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{position:relative;border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:var(--panel);cursor:pointer}
+.tile.active{outline:2px solid var(--accent);outline-offset:-2px}
+.tile img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#000}
+.tile .cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.82));color:#fff;font-size:11px;padding:16px 7px 6px;line-height:1.35}
+.tile .flags{position:absolute;top:6px;right:6px;display:flex;gap:4px}
+.tile .flag{font-size:9.5px;padding:1px 6px;border-radius:99px;background:rgba(0,0,0,.66);color:#fff;backdrop-filter:blur(3px)}
+.tile .flag.warn{background:rgba(251,191,36,.9);color:#000}
+.pager{display:flex;gap:10px;align-items:center;justify-content:center;margin:20px 0;color:var(--dim)}
+.drawer{position:fixed;top:0;right:0;width:var(--drawer-w);height:100vh;background:var(--panel);border-left:1px solid var(--edge);overflow:auto;z-index:30;padding:18px;box-shadow:-14px 0 40px rgba(0,0,0,.34)}
+:root{--drawer-w:min(440px,94vw)}
+/* On a wide screen the page makes room for the drawer instead of hiding tiles
+   underneath it, so every photo stays visible and clickable while one is open. */
+@media (min-width:900px){
+  body.drawer-open main{padding-right:calc(var(--drawer-w) + 34px)}
+  body.drawer-open header{padding-right:calc(var(--drawer-w) + 24px)}
+}
+/* Too narrow to split: the drawer covers the page, with a backdrop to dismiss it. */
+@media (max-width:899px){
+  .drawer{width:100vw}
+  .drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:29}
+}
+.drawer-backdrop{display:none}
+body.drawer-open .drawer-backdrop{display:block}
+.drawer img{width:100%;border-radius:9px;background:#000;margin-bottom:14px;cursor:zoom-in}
+.drawer h3{margin:0 0 4px;font-size:14px;word-break:break-all}
+.drawer .sub{color:var(--dim);font-size:11.5px;word-break:break-all;margin-bottom:14px;font-family:ui-monospace,Menlo,monospace}
+.kv{display:grid;grid-template-columns:105px 1fr;gap:5px 10px;font-size:12.5px;margin-bottom:14px}
+.kv dt{color:var(--dim)}
+.kv dd{margin:0;word-break:break-word}
+.sec{border-top:1px solid var(--edge);padding-top:12px;margin-top:12px}
+.sec h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}
+.sec p{margin:0;font-size:13px}
+#pipeTable{width:100%;border-collapse:collapse;font-size:13px}
+#pipeTable th{text-align:left;color:var(--dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px 6px 0;border-bottom:1px solid var(--edge)}
+#pipeTable td{padding:7px 10px 7px 0;border-bottom:1px solid var(--edge)}
+#pipeTable tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;border:1px solid var(--edge)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}
+.fitnote{font-size:12.5px;margin:2px 0 10px}
+.fitnote:empty{display:none}
+.fitnote.warn{color:var(--warn);border-left:3px solid var(--warn);padding:7px 10px;background:var(--bg);border-radius:0 6px 6px 0}
+.fitnote.bad{color:var(--err);border-left:3px solid var(--err);padding:7px 10px;background:var(--bg);border-radius:0 6px 6px 0}
+.fitnote.good{color:var(--dim)}
+.danger-h{color:var(--err)}
+button.danger{border-color:var(--err);color:var(--err)}
+button.danger:hover{background:var(--err);color:#fff}
+.storage-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.storage-legend div{display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:5px}
+.storage-legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
+.pill.stale{color:var(--warn);border-color:var(--warn)}
+.closeX{float:right;border:0;background:transparent;font-size:19px;color:var(--dim);cursor:pointer;padding:0 4px}
+label{color:var(--dim);font-size:13px;display:flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ophotofinder <span id="counts">—</span></h1>
+  <div class="tabs">
+    <button id="tabSearch" class="on">Search</button>
+    <button id="tabLibrary">Library</button>
+    <button id="tabIndex">Index</button>
+    <button id="tabSettings">Settings</button>
+  </div>
+  <div class="grow"></div>
+  <span class="stat" id="ollama">—</span>
+</header>
+
+<main>
+  <section id="viewIndex" class="hidden">
+  <div class="panel" id="indexPanel">
+    <h2>Index a folder</h2>
+    <p class="stat" style="margin:0 0 10px">
+      A one-off run over a folder you pick. To keep folders updated automatically,
+      add them under <b>Settings → Watched folders</b>.
+    </p>
+    <div class="row">
+      <button class="primary" id="nativePick">📂 Choose folder…</button>
+    </div>
+    <div id="pickNote"></div>
+
+    <details id="browseWrap">
+      <summary class="stat" style="cursor:pointer;margin:6px 0 10px">Or browse folders here</summary>
+      <div class="row">
+        <button id="upBtn">↑ Up</button>
+        <span class="crumbs" id="crumbs">choose a starting point</span>
+      </div>
+      <div class="row" id="rootRow"></div>
+      <div class="dirlist" id="dirlist"></div>
+    </details>
+
+    <div class="selected" id="selectedBox">
+      <span class="stat">selected folder</span>
+      <div class="crumbs" id="selectedPath">none yet</div>
+      <div id="browseNote"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label>Description model
+        <select id="visionModel"><option value="">use the Settings default</option></select>
+      </label>
+      <label><input type="checkbox" id="optCaption" checked> captions</label>
+      <label><input type="checkbox" id="optOcr" checked> OCR</label>
+      <label><input type="checkbox" id="optRecursive" checked> subfolders</label>
+      <label><input type="checkbox" id="optReindex"> force re-index</label>
+      <label>limit <input id="optLimit" type="number" min="1" style="width:82px" placeholder="all"></label>
+      <button class="primary" id="startIndex" disabled>Index this folder</button>
+    </div>
+    <div id="progress" class="hidden">
+      <div class="bar"><i id="barFill" style="width:0"></i></div>
+      <div class="stat" id="progText"></div>
+      <div class="log" id="log"></div>
+    </div>
+    <div id="indexNotes"></div>
+  </div>
+  </section>
+
+  <section id="viewSearch">
+  <div class="searchbar">
+    <input id="q" placeholder="e.g. my dog on the beach at sunset / a whiteboard with writing / passport scan" autofocus>
+    <button class="primary" id="go">Search</button>
+  </div>
+  <div class="filters">
+    <label><input type="checkbox" id="wantAnswer"> answer with local LLM</label>
+    <a href="#" id="toSettingsModels" class="stat" title="choose which model answers">model: <span id="answerModelName">…</span></a>
+    <select id="mode"><option value="both">both signals</option><option value="clip">CLIP only</option><option value="text">caption/OCR only</option></select>
+    <input id="fYear" placeholder="year" style="width:78px">
+    <input id="fCamera" placeholder="camera" style="width:150px">
+    <label><input type="checkbox" id="fText"> has readable text</label>
+    <select id="k"><option>12</option><option selected>24</option><option>48</option><option>96</option></select>
+    <span class="grow"></span>
+    <span class="stat" id="searchStat"></span>
+  </div>
+
+  <div id="answerBox" class="answer hidden"></div>
+  <div class="grid" id="results"></div>
+  <div id="empty" class="stat"></div>
+  </section>
+
+  <section id="viewLibrary" class="hidden">
+    <div class="filters">
+      <select id="libSort">
+        <option value="taken_desc">newest taken</option>
+        <option value="taken_asc">oldest taken</option>
+        <option value="name">filename</option>
+        <option value="folder">folder</option>
+        <option value="indexed_desc">recently indexed</option>
+      </select>
+      <select id="libFolder"><option value="">all folders</option></select>
+      <select id="libCamera"><option value="">all cameras</option></select>
+      <select id="libStatus">
+        <option value="">any caption state</option>
+        <option value="ok">captioned</option>
+        <option value="empty">caption empty</option>
+        <option value="error">caption error</option>
+        <option value="skipped">caption skipped</option>
+      </select>
+      <label><input type="checkbox" id="libText"> has OCR text</label>
+      <button id="libRefresh" title="reload from the index">↻ Refresh</button>
+      <span class="grow"></span>
+      <span class="stat" id="libStat"></span>
+    </div>
+    <div id="libBanner" class="note hidden" style="border-color:var(--accent)"></div>
+    <div class="album" id="album"></div>
+    <div class="pager">
+      <button id="libPrev">← previous</button>
+      <span id="libRange">—</span>
+      <button id="libNext">next →</button>
+    </div>
+  </section>
+
+  <section id="viewSettings" class="hidden">
+    <div class="panel">
+      <h2>Ollama server</h2>
+      <p class="stat" style="margin:0 0 10px">
+        Where the local models run. Leave blank for the default
+        (<code>http://localhost:11434</code>, or <code>OLLAMA_HOST</code> if set).
+      </p>
+      <div class="row">
+        <input id="setOllamaHost" placeholder="http://localhost:11434" style="flex:1;min-width:240px">
+        <button id="testOllama">Test</button>
+        <button class="primary" id="saveOllama">Save</button>
+      </div>
+      <div id="ollamaNote" class="stat"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Models</h2>
+      <p class="stat" style="margin:0 0 12px">
+        Used everywhere unless a single run overrides them.
+      </p>
+      <div class="row">
+        <label style="min-width:230px">Photo descriptions (vision model)
+          <select id="setVision"><option value="">auto</option></select>
+        </label>
+      </div>
+      <div id="visionFit" class="fitnote"></div>
+      <div class="row">
+        <label style="min-width:230px">Answering questions (text model)
+          <select id="setText"><option value="">auto</option></select>
+        </label>
+      </div>
+      <div id="textFit" class="fitnote"></div>
+      <div id="memNote" class="stat" style="margin-top:8px"></div>
+      <div class="row">
+        <label><input type="checkbox" id="setCaption"> describe photos with the vision model</label>
+        <label><input type="checkbox" id="setOcr"> read text in photos</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Watched folders</h2>
+      <p class="stat" style="margin:0 0 12px">
+        These folders are checked regularly and anything new or changed is indexed
+        automatically. Photos are never modified.
+      </p>
+      <div id="folderList"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="addFolder">＋ Add folder…</button>
+        <label><input type="checkbox" id="watchEnabled"> keep these folders up to date</label>
+        <label>check every <input id="watchInterval" type="number" min="1" max="1440" style="width:74px"> minutes</label>
+        <button id="checkNow">Check now</button>
+      </div>
+      <div id="watchStatus" class="stat" style="margin-top:8px"></div>
+      <div id="folderNote"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Keeping photos current</h2>
+      <label><input type="checkbox" id="autoUpgrade">
+        automatically re-process photos when the indexing method improves</label>
+      <div class="stat" style="margin-top:6px" id="upgradePlain"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="runUpgrade">Update photos now</button>
+        <span class="stat" id="upgradeHint"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="danger-h">Danger zone</h2>
+      <p class="stat" style="margin:0 0 10px">
+        Clearing removes everything Ophotofinder has learned about your photos.
+        <b>Your photo files are never deleted</b> — you can re-index at any time.
+      </p>
+      <div class="row">
+        <button id="clearIndex" class="danger">Clear index…</button>
+        <span class="stat" id="clearNote"></span>
+      </div>
+    </div>
+
+    <details class="panel" id="advanced">
+      <summary style="cursor:pointer;color:var(--dim);font-size:13px">Advanced technical settings</summary>
+
+      <h2 style="margin-top:16px">Indexing pipeline</h2>
+      <p class="stat" style="margin:0 0 12px">
+        Each signal is produced by a component with its own version. When a component
+        improves, only photos behind it are re-processed — and only that component is
+        re-run, so a better text reader does not cost a full re-description.
+      </p>
+      <div id="pipeSummary" class="stat"></div>
+      <table id="pipeTable"></table>
+      <div class="row" style="margin-top:12px">
+        <label>upgrade only <select id="upgradeOnly"><option value="">all stale components</option></select></label>
+      </div>
+
+      <h2 style="margin-top:20px">Second text reader</h2>
+      <div class="row">
+        <label><select id="setAltOcr">
+          <option value="auto">auto — best available</option>
+          <option value="apple">Apple Vision (macOS)</option>
+          <option value="rapidocr">RapidOCR (any platform)</option>
+          <option value="vlm">vision model transcription</option>
+          <option value="none">off</option>
+        </select></label>
+      </div>
+      <div id="readers" style="margin-top:10px"></div>
+
+      <h2 style="margin-top:20px">This machine</h2>
+      <dl class="kv" id="sysTable"></dl>
+
+      <h2 style="margin-top:16px">Index contents</h2>
+      <div id="contents"></div>
+
+      <h2 style="margin-top:20px">Storage</h2>
+      <div id="storageBox"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="changeLocation">Change location…</button>
+        <button id="resetLocation">Use default location</button>
+      </div>
+      <div id="storageNote"></div>
+
+    </details>
+  </section>
+
+</main>
+
+<dialog id="lightbox"><img id="lbImg"><div class="cc" id="lbCap"></div></dialog>
+
+<script>
+const $=s=>document.querySelector(s), esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let cwd=null, polling=null;
+
+async function api(u,o){const r=await fetch(u,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j;}
+
+// ---------- status
+async function refreshStatus(){
+  try{
+    const s=await api('/api/status');
+    $('#counts').textContent=`· ${s.counts.clip} photos indexed`;
+    $('#ollama').textContent = s.ollama_up ? `ollama ok · auto vision: ${s.auto_vision||'none'}` : `ollama DOWN (${s.ollama_host})`;
+    $('#ollama').style.color = s.ollama_up ? 'var(--dim)' : 'var(--err)';
+    const sel=$('#visionModel');
+    if(sel.options.length<=1){
+      s.models.filter(m=>m.vision).forEach(m=>{
+        const o=document.createElement('option');o.value=m.name;
+        o.textContent=m.name+(m.broken?' (broken on this ollama)':'')+` · ctx ${m.ctx||'?'}`;
+        o.disabled=m.broken; sel.appendChild(o);
+      });
+      if(s.models.filter(m=>m.vision&&!m.broken).length===0){
+        const o=document.createElement('option');o.textContent='no vision-capable model installed';o.disabled=true;sel.appendChild(o);
+      }
+    }
+    const eff = s.settings_text_model || s.auto_text;
+    const nameEl = $('#answerModelName');
+    if(nameEl) nameEl.textContent = eff ? (s.settings_text_model ? eff : `${eff} (auto)`) : 'none';
+  }catch(e){$('#ollama').textContent='status unavailable';}
+}
+
+// ---------- browser
+async function browse(path){
+  const j=await api('/api/browse'+(path?('?path='+encodeURIComponent(path)):''));
+  $('#crumbs').textContent=j.path||'choose a starting point';
+  $('#rootRow').innerHTML='';
+  (j.roots||[]).forEach(r=>{const b=document.createElement('button');b.textContent=r.name;b.onclick=()=>browse(r.path);$('#rootRow').appendChild(b);});
+  $('#dirlist').innerHTML=(j.dirs||[]).map(d=>d.bundle
+      ? `<div class="bundle" title="sealed macOS library package — cannot be read directly">📦 ${esc(d.name)} — sealed library package</div>`
+      : `<div data-p="${esc(d.path)}">📁 ${esc(d.name)}</div>`).join('')
+    || '<div class="stat" style="padding:9px 11px">no subfolders</div>';
+  $('#dirlist').querySelectorAll('div[data-p]').forEach(el=>el.onclick=()=>browse(el.dataset.p));
+  if(j.path) setSelected(j.path, j.note, j.images_recursive);
+}
+
+$('#upBtn').onclick=async()=>{const j=await api('/api/browse'+(cwd?('?path='+encodeURIComponent(cwd)):''));if(j.parent)browse(j.parent);};
+
+// ---------- folder selection
+function setSelected(path, note, count){
+  cwd = path || null;
+  $('#selectedPath').textContent = path || 'none yet';
+  $('#selectedPath').style.color = path ? 'var(--fg)' : 'var(--dim)';
+  $('#startIndex').disabled = !path;
+  let html = '';
+  if(path && count!=null) html += `<div class="stat">${count} image file(s) including subfolders</div>`;
+  if(note) html += `<div class="note">${esc(note)}</div>`;
+  $('#browseNote').innerHTML = html;
+}
+
+// The OS folder chooser, opened by the server on this machine. A browser cannot
+// hand a web page a real filesystem path, so this is the only way to get a
+// native dialog; it is hidden when the server is not local.
+async function initNativePicker(){
+  try{
+    const j = await api('/api/pick-folder/available');
+    if(!j.available){
+      $('#nativePick').style.display='none';
+      $('#browseWrap').open = true;
+      if(j.reason) $('#pickNote').innerHTML=`<div class="stat">native folder dialog unavailable (${esc(j.reason)}) — browse below or paste a path</div>`;
+    }
+  }catch(e){ $('#nativePick').style.display='none'; $('#browseWrap').open = true; }
+}
+
+$('#nativePick').onclick=async()=>{
+  const btn=$('#nativePick'); btn.disabled=true; btn.textContent='Waiting for the dialog…';
+  $('#pickNote').innerHTML='';
+  try{
+    const j=await api('/api/pick-folder',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({start:cwd||null})});
+    if(!j.cancelled){ setSelected(j.path, j.note, j.images_recursive); browse(j.path); }
+  }catch(e){ $('#pickNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+  finally{ btn.disabled=false; btn.textContent='📂 Choose folder…'; }
+};
+
+
+
+
+// ---------- indexing
+$('#startIndex').onclick=async()=>{
+  if(!cwd)return;
+  $('#startIndex').disabled=true; $('#indexNotes').innerHTML='';
+  try{
+    await api('/api/index',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      folders:[cwd], vision_model:$('#visionModel').value, caption:$('#optCaption').checked,
+      ocr:$('#optOcr').checked, recursive:$('#optRecursive').checked,
+      reindex:$('#optReindex').checked, limit:$('#optLimit').value||null })});
+    $('#progress').classList.remove('hidden'); startPolling();
+  }catch(e){ $('#indexNotes').innerHTML=`<div class="note err">${esc(e.message)}</div>`; $('#startIndex').disabled=false; }
+};
+
+function startPolling(){ if(polling)return; $('#progress').classList.remove('hidden'); polling=setInterval(pollIndex,900); pollIndex(); }
+
+async function pollIndex(){
+  const j=await api('/api/index/status');
+  const pct=j.total?Math.round(100*j.done/j.total):0;
+  $('#barFill').style.width=pct+'%';
+  $('#progText').textContent = j.running
+    ? `${j.done}/${j.total} · ${j.current} · ${j.elapsed}s`
+    : (j.summary ? `done: ${j.summary.indexed} indexed, ${j.summary.skipped_unchanged} unchanged, ${j.summary.failed} failed, captions ${j.summary.caption_ok} ok / ${j.summary.caption_empty} empty / ${j.summary.caption_skipped} off · ${j.summary.elapsed}s`
+                 : (j.locked_by_other ? `another indexing run holds the lock (pid ${j.holder&&j.holder.pid})` : ''));
+  $('#log').innerHTML=(j.log||[]).slice().reverse().map(l=>{
+    const cls=l.status==='ok'?'':(l.status==='fail'?'err':'bad');
+    return `<div><b class="${cls}">${esc(l.status||'?')}</b> ${esc(l.name)} <span>${esc((l.caption||l.error||'').slice(0,90))}</span></div>`;}).join('');
+  const notes=(j.notes||[]).concat(j.error?[j.error]:[]);
+  $('#indexNotes').innerHTML=notes.map(n=>`<div class="note${j.error&&n===j.error?' err':''}">${esc(n)}</div>`).join('');
+  if(!j.running && !j.locked_by_other){ clearInterval(polling); polling=null; $('#startIndex').disabled=!cwd; refreshStatus(); if(!$('#viewSettings').classList.contains('hidden')) loadSettings(); }
+}
+
+// ---------- search
+async function search(){
+  const q=$('#q').value.trim(); if(!q)return;
+  $('#searchStat').textContent='searching…'; $('#empty').textContent=''; $('#answerBox').classList.add('hidden');
+  const t0=performance.now();
+  try{
+    const j=await api('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      query:q, k:parseInt($('#k').value), mode:$('#mode').value, year:$('#fYear').value,
+      camera:$('#fCamera').value, with_text:$('#fText').checked,
+      answer:$('#wantAnswer').checked })});
+    $('#searchStat').textContent=`${j.hits.length} result(s) in ${Math.round(performance.now()-t0)}ms`;
+    if(j.answer){$('#answerBox').textContent=j.answer;$('#answerBox').classList.remove('hidden');}
+    if(j.answer_error){$('#answerBox').textContent='answer failed: '+j.answer_error;$('#answerBox').classList.remove('hidden');}
+    render(j.hits);
+    if(!j.hits.length)$('#empty').textContent='No matching photos. Try different wording, or index more folders.';
+  }catch(e){ $('#searchStat').textContent=''; $('#empty').textContent=e.message; }
+}
+
+function render(hits){
+  $('#results').innerHTML=hits.map(h=>{
+    const cap=h.caption ? `<div class="cap">${esc(h.caption)}</div>`
+      : `<div class="nocap">no caption — ${esc(h.caption_status||'unknown')}${h.caption_detail?' ('+esc(h.caption_detail)+')':''}</div>`;
+    const meta=[h.taken_at?h.taken_at.slice(0,10):'',h.camera||'',h.orientation||'',h.why]
+      .filter(Boolean).map(x=>`<span class="tag">${esc(x)}</span>`).join('');
+    return `<div class="card">
+      <img loading="lazy" src="${h.thumb}" data-full="/api/photo?path=${encodeURIComponent(h.path)}"
+           data-cap="${esc(h.path)}">
+      <div class="body"><div class="name">${esc(h.filename||'')}</div>${cap}
+      ${h.ocr?`<div class="ocr">OCR: ${esc(String(h.ocr).slice(0,160))}</div>`:''}
+      ${h.ocr_alt&&h.ocr_alt!==h.ocr?`<div class="ocr" style="color:var(--ok)">${esc(h.ocr_alt_method||'alt')}: ${esc(String(h.ocr_alt).replace(/\n/g,' / ').slice(0,160))}</div>`:''}
+      <div class="meta">${meta}</div></div></div>`;}).join('');
+  $('#results').querySelectorAll('img').forEach(img=>img.onclick=()=>{
+    $('#lbImg').src=img.dataset.full; $('#lbCap').textContent=img.dataset.cap; $('#lightbox').showModal();});
+}
+$('#toSettingsModels').onclick=(e)=>{e.preventDefault(); switchTab('settings');};
+$('#lightbox').onclick=()=>$('#lightbox').close();
+$('#go').onclick=search;
+$('#q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
+
+// ---------- library / album
+let libOffset=0, libLimit=60, libTotal=0, libFacets=null;
+
+const VIEWS=['search','library','index','settings'];
+function switchTab(which){
+  VIEWS.forEach(v=>{
+    const sec=$('#view'+v[0].toUpperCase()+v.slice(1));
+    const tab=$('#tab'+v[0].toUpperCase()+v.slice(1));
+    if(sec) sec.classList.toggle('hidden', v!==which);
+    if(tab) tab.classList.toggle('on', v===which);
+  });
+  if(which==='library'){ if(!libFacets) loadLibrary(0); libTick(); }
+  if(which==='index'){ initNativePicker(); if(!cwd) browse(''); }
+  if(which==='settings') loadSettings();
+}
+VIEWS.forEach(v=>{
+  const t=$('#tab'+v[0].toUpperCase()+v.slice(1));
+  if(t) t.onclick=()=>switchTab(v);
+});
+
+function libParams(offset){
+  const p=new URLSearchParams({offset:offset, limit:libLimit, sort:$('#libSort').value});
+  if($('#libFolder').value) p.set('folder',$('#libFolder').value);
+  if($('#libCamera').value) p.set('camera',$('#libCamera').value);
+  if($('#libStatus').value) p.set('caption_status',$('#libStatus').value);
+  if($('#libText').checked) p.set('with_text','1');
+  return p;
+}
+
+async function loadLibrary(offset){
+  $('#libStat').textContent='loading…';
+  try{
+    let j=await api('/api/library?'+libParams(offset).toString());
+    // Photos may have been removed since this page was loaded; land on a real page.
+    if(j.total && offset >= j.total){
+      offset = Math.max(0, (Math.ceil(j.total/libLimit)-1)*libLimit);
+      j = await api('/api/library?'+libParams(offset).toString());
+    }
+    libOffset=j.offset; libTotal=j.total; libFacets=j.facets;
+    fillFacet($('#libFolder'), Object.keys(j.facets.folders||{}), 'all folders', true);
+    fillFacet($('#libCamera'), j.facets.cameras||[], 'all cameras', false);
+    renderAlbum(j.records);
+    const from=libTotal?libOffset+1:0, to=Math.min(libOffset+libLimit, libTotal);
+    $('#libRange').textContent=`${from}–${to} of ${libTotal}`;
+    $('#libStat').textContent=`${libTotal} photo(s) indexed`;
+    $('#libPrev').disabled=libOffset<=0;
+    $('#libNext').disabled=libOffset+libLimit>=libTotal;
+  }catch(e){ $('#libStat').textContent=e.message; }
+}
+
+function fillFacet(sel, values, allLabel, isPath){
+  if(sel.dataset.filled==='1') return;
+  values.forEach(v=>{const o=document.createElement('option');o.value=v;
+    o.textContent=isPath?v.split('/').slice(-2).join('/'):v; o.title=v; sel.appendChild(o);});
+  sel.dataset.filled='1';
+}
+
+function renderAlbum(recs){
+  if(!recs.length){ $('#album').innerHTML='<div class="stat">Nothing matches these filters.</div>'; return; }
+  $('#album').innerHTML=recs.map((r,i)=>{
+    const bad=r.caption_status&&r.caption_status!=='ok';
+    const flags=[bad?`<span class="flag warn">${esc(r.caption_status)}</span>`:'',
+                 r.ocr?'<span class="flag">OCR</span>':'',
+                 r.ocr_alt?'<span class="flag">TEXT+</span>':''].join('');
+    const label=r.caption?esc(String(r.caption).slice(0,70)):esc(r.filename||'');
+    return `<div class="tile" data-i="${i}"><img loading="lazy" src="${r.thumb}" alt="">
+      <div class="flags">${flags}</div><div class="cap">${label}</div></div>`;}).join('');
+  $('#album').querySelectorAll('.tile').forEach(t=>t.onclick=()=>{
+    $('#album').querySelectorAll('.tile').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    showDetail(recs[+t.dataset.i]);
+  });
+}
+
+function closeDrawer(){
+  document.querySelectorAll('.drawer,.drawer-backdrop').forEach(d=>d.remove());
+  document.body.classList.remove('drawer-open');
+}
+
+function showDetail(r){
+  document.querySelectorAll('.drawer,.drawer-backdrop').forEach(d=>d.remove());
+  const row=(k,v)=>v?`<dt>${k}</dt><dd>${esc(String(v))}</dd>`:'';
+  const gps=(r.gps_lat!=null&&r.gps_lon!=null)?`${r.gps_lat}, ${r.gps_lon}`:'';
+  const signals=[r.caption_status==='ok'?'caption':'', r.ocr?'OCR':'', r.taken_at?'EXIF':'', 'CLIP']
+    .filter(Boolean).join(' · ');
+  const d=document.createElement('div');
+  d.className='drawer';
+  d.innerHTML=`<button class="closeX" title="close">×</button>
+    <img src="${r.thumb}" data-full="${r.photo}">
+    <h3>${esc(r.filename||'')}</h3><div class="sub">${esc(r.path||'')}</div>
+    <dl class="kv">
+      ${row('signals',signals)}
+      ${row('taken', r.taken_at ? r.taken_at.replace('T',' ') + (r.date_source==='mtime' ? '  (file date — no EXIF)' : '') : '')}${row('camera',r.camera)}${row('lens',r.lens)}
+      ${row('GPS',gps)}${row('size',r.width&&r.height?`${r.width} × ${r.height} (${r.orientation||''})`:'')}
+      ${row('indexed',r.indexed_at)}${row('model',r.caption_model)}
+    </dl>
+    <div class="sec"><h4>Caption</h4><p>${r.caption?esc(r.caption)
+        :`<span class="stat">none — ${esc(r.caption_status||'unknown')}${r.caption_detail?' ('+esc(r.caption_detail)+')':''}</span>`}</p></div>
+    ${r.ocr?`<div class="sec"><h4>Text found in photo (OCR — tesseract)</h4><p style="white-space:pre-wrap">${esc(r.ocr)}</p></div>`:''}
+    ${r.ocr_alt?`<div class="sec"><h4>Text found in photo (other method — ${esc(r.ocr_alt_method||'alt')}${r.ocr_alt_conf?`, confidence ${r.ocr_alt_conf}`:''})</h4><p style="white-space:pre-wrap">${esc(r.ocr_alt)}</p></div>`:''}
+    <div class="sec"><h4>Indexed document</h4><p class="stat" style="white-space:pre-wrap;font-size:12px">${esc(r.document||'')}</p></div>`;
+  const back=document.createElement('div');
+  back.className='drawer-backdrop';
+  back.onclick=closeDrawer;
+  document.body.appendChild(back);
+  document.body.appendChild(d);
+  document.body.classList.add('drawer-open');
+  d.querySelector('.closeX').onclick=closeDrawer;
+  d.querySelector('img').onclick=()=>{$('#lbImg').src=r.photo;$('#lbCap').textContent=r.path;$('#lightbox').showModal();};
+}
+
+$('#libRefresh').onclick=()=>{
+  // Clear the facet caches so folders and cameras added since last load show up.
+  ['libFolder','libCamera'].forEach(id=>{
+    const sel=$('#'+id); sel.dataset.filled=''; 
+    sel.innerHTML=`<option value="">${id==='libFolder'?'all folders':'all cameras'}</option>`;
+  });
+  libFacets=null;
+  loadLibrary(libOffset);
+  refreshStatus();
+};
+// While an indexing run is active the Library polls, so new photos appear without
+// the user having to press anything. Newly indexed photos are easy to miss under
+// the default "newest taken" sort -- a photo from 2019 indexed today sorts to the
+// last page -- so the banner offers the sort that actually shows them.
+let libLiveTimer=null, libLastTotal=null;
+
+async function libTick(){
+  try{
+    const j = await api('/api/index/status');
+    const banner = $('#libBanner');
+    if(j.running){
+      const what = j.mode === 'upgrade' ? 'Upgrading' : 'Indexing';
+      banner.classList.remove('hidden');
+      banner.innerHTML =
+        `<b>${what} in progress</b> — ${j.done}/${j.total} processed`
+        + (j.current ? ` · ${esc(j.current)}` : '')
+        + `<br><span class="stat">This list reloads automatically. Newly indexed photos
+           sort by their capture date, so an older photo can land on a later page —
+           </span><a href="#" id="libShowNew">show most recently indexed first</a>`;
+      const link = $('#libShowNew');
+      if(link) link.onclick=(e)=>{e.preventDefault(); $('#libSort').value='indexed_desc'; loadLibrary(0);};
+      if(!libLiveTimer) libLiveTimer=setInterval(()=>loadLibrary(libOffset), 4000);
+    }else{
+      if(libLiveTimer){ clearInterval(libLiveTimer); libLiveTimer=null; loadLibrary(libOffset); }
+      if(j.summary && j.summary.indexed){
+        banner.classList.remove('hidden');
+        banner.innerHTML = `<b>Finished</b> — ${j.summary.indexed} photo(s) added or updated. `
+          + `<a href="#" id="libShowNew">show most recently indexed first</a>`;
+        const link=$('#libShowNew');
+        if(link) link.onclick=(e)=>{e.preventDefault(); $('#libSort').value='indexed_desc'; loadLibrary(0); banner.classList.add('hidden');};
+      }else{
+        banner.classList.add('hidden');
+      }
+    }
+  }catch(e){ /* the status endpoint is optional for browsing */ }
+}
+
+$('#libPrev').onclick=()=>loadLibrary(Math.max(0,libOffset-libLimit));
+$('#libNext').onclick=()=>loadLibrary(libOffset+libLimit);
+['libSort','libFolder','libCamera','libStatus','libText'].forEach(id=>$('#'+id).onchange=()=>loadLibrary(0));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+
+
+// ---------- settings
+let settingsLoaded=false;
+
+async function loadSettings(){
+  try{
+    const [cfg, pipe, sys] = await Promise.all([
+      api('/api/settings'), api('/api/pipeline'), api('/api/system')]);
+    const s = cfg.settings;
+
+    // --- models
+    const fillModels=(sel, list, autoName)=>{
+      if(sel.dataset.filled==='1') return;
+      sel.options[0].textContent = autoName ? `auto (${autoName})` : 'auto';
+      list.forEach(m=>{
+        const o=document.createElement('option'); o.value=m.name;
+        const gb = m.size ? ` · ${(m.size/1e9).toFixed(1)} GB` : '';
+        const warn = m.fit && m.fit.level==='too_big' ? ' · too big for this machine'
+                   : m.fit && m.fit.level==='tight' ? ' · tight on memory' : '';
+        o.textContent=m.name+(m.broken?' — not usable':'')+gb+warn;
+        o.disabled=m.broken; sel.appendChild(o);
+      });
+      sel.dataset.filled='1';
+    };
+    modelsById = {};
+    cfg.models.forEach(m=>modelsById[m.name]=m);
+    autoNames = {vision: cfg.auto_vision, text: cfg.auto_text};
+    if(cfg.machine && cfg.machine.accelerator){
+      const a=cfg.machine.accelerator;
+      let txt = `This machine: ${a.summary}.`;
+      if(cfg.loaded && cfg.loaded.length)
+        txt += ' Loaded now: ' + cfg.loaded.map(l=>`${l.name} — ${l.note}`).join('; ') + '.';
+      $('#memNote').textContent = txt;
+    }
+    fillModels($('#setVision'), cfg.models.filter(m=>m.vision), cfg.auto_vision);
+    fillModels($('#setText'), cfg.models.filter(m=>(m.caps||[]).includes('completion')&&!m.broken), cfg.auto_text);
+    $('#setVision').value = s.vision_model||'';
+    $('#setText').value = s.text_model||'';
+    $('#setAltOcr').value = s.alt_ocr||'auto';
+    if(document.activeElement !== $('#setOllamaHost')) $('#setOllamaHost').value = s.ollama_host||'';
+    $('#setCaption').checked = !!s.caption_enabled;
+    $('#setOcr').checked = !!s.ocr_enabled;
+    $('#watchEnabled').checked = !!s.watch_enabled;
+    $('#watchInterval').value = s.watch_interval_minutes||30;
+    $('#autoUpgrade').checked = !!s.auto_upgrade;
+
+    showFit('#setVision', '#visionFit', 'vision');
+    showFit('#setText', '#textFit', 'text');
+
+    renderFolders(cfg.watcher.folders.map(f=>({...f, exists:true})), cfg.watcher);
+
+    // --- plain-language upgrade state
+    $('#upgradePlain').textContent = pipe.total
+      ? (pipe.stale
+          ? `${pipe.stale} of ${pipe.total} photo(s) were indexed with an older method.`
+          : `All ${pipe.total} photo(s) are up to date.`)
+      : 'Nothing indexed yet.';
+    $('#runUpgrade').disabled = !pipe.stale;
+    $('#upgradeHint').textContent = pipe.stale ? 'only what changed is re-processed' : '';
+
+    // --- advanced
+    $('#pipeSummary').innerHTML = pipe.total
+      ? `pipeline <b>${esc(pipe.signature)}</b> · ${pipe.total} photo(s) · `
+        + (pipe.stale?`<span style="color:var(--warn)">${pipe.stale} behind</span>`:'<span style="color:var(--ok)">all current</span>')
+      : 'nothing indexed yet';
+    $('#pipeTable').innerHTML =
+      '<tr><th>component</th><th>version</th><th>cost to re-run</th><th>photos behind</th></tr>' +
+      pipe.components.map(c=>`<tr><td>${esc(c.name)}</td><td>v${c.version}</td>
+        <td class="stat">${esc(c.cost)}</td>
+        <td>${c.behind?`<span class="pill stale">${c.behind}</span>`:'<span class="pill ok">0</span>'}</td></tr>`).join('');
+    const only=$('#upgradeOnly');
+    only.innerHTML='<option value="">all stale components</option>'+
+      pipe.components.filter(c=>c.behind).map(c=>`<option value="${esc(c.name)}">${esc(c.name)} only (${c.behind})</option>`).join('');
+
+    $('#sysTable').innerHTML = [
+      ['platform', sys.platform], ['python', sys.python], ['torch device', sys.device],
+      ['data directory', sys.data_dir], ['ollama', sys.ollama_host],
+      ['HEIC support', sys.heic?'yes':'no'], ['tesseract', sys.tesseract?'yes':'no'],
+    ].map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`).join('');
+    $('#readers').innerHTML = sys.second_readers.map(r=>
+      `<div style="margin-bottom:6px"><span class="pill ${r.ok?'ok':''}">${r.ok?'available':'not installed'}</span>
+       <b>${esc(r.name)}</b> <span class="stat">${esc(r.note)}</span></div>`).join('');
+    $('#contents').innerHTML =
+      `<div class="stat" style="margin-bottom:8px">${sys.counts.clip} photo(s) · captions: `
+      + Object.entries(sys.caption_health||{}).map(([k,v])=>`${esc(k)}=${v}`).join(', ') + '</div>'
+      + Object.entries(sys.folders||{}).map(([f,n])=>`<div class="stat">${n} &nbsp; ${esc(f)}</div>`).join('');
+    loadStorage();
+    settingsLoaded=true;
+  }catch(e){ $('#upgradePlain').textContent = e.message; }
+}
+
+function renderFolders(folders, watcher){
+  $('#folderList').innerHTML = folders.length ? folders.map(f=>`
+    <div class="row" style="margin-bottom:6px;gap:8px">
+      <span class="crumbs" style="flex:1">${esc(f.path)}${f.exists===false?' <span style="color:var(--err)">(missing)</span>':''}
+        ${f.images!=null?`<span class="stat"> · ${f.images} image(s)</span>`:''}</span>
+      <label class="stat"><input type="checkbox" class="fRec" data-p="${esc(f.path)}" ${f.recursive!==false?'checked':''}> subfolders</label>
+      <button class="fDel" data-p="${esc(f.path)}">Remove</button>
+    </div>`).join('')
+    : '<div class="stat">No folders watched yet.</div>';
+
+  $('#folderList').querySelectorAll('.fDel').forEach(b=>b.onclick=()=>folderAction('remove', b.dataset.p));
+  $('#folderList').querySelectorAll('.fRec').forEach(c=>c.onchange=()=>folderAction('recursive', c.dataset.p, c.checked));
+
+  if(watcher){
+    const rows=[];
+    rows.push(watcher.running_now
+      ? '<b>Checking now…</b>'
+      : (watcher.enabled ? 'Automatic updates are <b>on</b>' : 'Automatic updates are <b>off</b>'));
+    if(watcher.yielding) rows.push('<span style="color:var(--warn)">paused — an indexing run you started has priority</span>');
+    if(watcher.last_run_iso)
+      rows.push(`Last checked <b>${esc(watcher.last_run_iso)}</b>`
+              + (watcher.last_run_ago?` <span class="stat">(${esc(watcher.last_run_ago)})</span>`:'')
+              + (watcher.last_result?` — ${esc(watcher.last_result)}`:''));
+    else
+      rows.push('Not checked yet');
+    if(watcher.enabled && watcher.next_run_iso && !watcher.running_now)
+      rows.push(`Next check <b>${esc(watcher.next_run_iso)}</b>`
+              + (watcher.next_run_in?` <span class="stat">(${esc(watcher.next_run_in)})</span>`:''));
+    $('#watchStatus').innerHTML = rows.map(r=>`<div>${r}</div>`).join('');
+  }
+}
+
+async function folderAction(action, path, recursive){
+  $('#folderNote').innerHTML='';
+  try{
+    const j=await api('/api/settings/folders',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action, path, recursive})});
+    renderFolders(j.folders, j.watcher);
+  }catch(e){ $('#folderNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+}
+
+async function saveSettings(patch){
+  try{ await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(patch)}); }
+  catch(e){ $('#folderNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+}
+
+$('#testOllama').onclick=async()=>{
+  const note=$('#ollamaNote'); note.textContent='testing…';
+  try{
+    const j=await api('/api/ollama/test',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({host:$('#setOllamaHost').value})});
+    note.innerHTML = j.ok
+      ? `<span style="color:var(--ok)">reached ${esc(j.host)} — ${j.models} model(s)${j.sample.length?': '+esc(j.sample.join(', ')):''}</span>`
+      : `<span style="color:var(--err)">could not reach ${esc(j.host)} — ${esc(j.error)}</span>`;
+  }catch(e){ note.innerHTML=`<span style="color:var(--err)">${esc(e.message)}</span>`; }
+};
+
+$('#saveOllama').onclick=async()=>{
+  await saveSettings({ollama_host:$('#setOllamaHost').value});
+  // Model lists come from the server we just pointed at, so rebuild them.
+  ['setVision','setText'].forEach(id=>{ const el=$('#'+id); el.dataset.filled=''; el.innerHTML='<option value="">auto</option>'; });
+  $('#ollamaNote').textContent='saved — reloading models…';
+  await loadSettings();
+  refreshStatus();
+  $('#ollamaNote').textContent='saved';
+};
+
+
+// ---------- model capacity
+let modelsById = {}, autoNames = {};
+
+// Ollama will happily start a model too large for the machine; it then swaps and
+// the computer grinds. Warn on the choice rather than after the freeze.
+function showFit(selId, noteId, kind){
+  const el=$(noteId); if(!el) return;
+  const chosen = $(selId).value || autoNames[kind] || '';
+  const m = modelsById[chosen];
+  if(!m || !m.fit){ el.className='fitnote'; el.textContent=''; return; }
+  const f = m.fit, lvl = f.level;
+  el.className = 'fitnote ' + (lvl==='bad' ? 'bad' : lvl==='warn' ? 'warn' : 'good');
+  const icon = (lvl==='bad'||lvl==='warn') ? '⚠ ' : (lvl==='good' ? '✓ ' : '');
+  el.innerHTML = `${icon}<b>${esc(chosen)}</b> — ${esc(f.headline)}`
+    + `<div class="stat" style="margin-top:3px">${f.reasons.map(r=>esc(r)).join('<br>')}</div>`;
+}
+
+// ---------- storage + clear
+const STORAGE_COLOURS = ['var(--accent)', 'var(--ok)', 'var(--dim)'];
+
+async function loadStorage(){
+  try{
+    const r = await api('/api/storage');
+    const parts = r.parts.filter(p=>p.bytes>0);
+    const total = Math.max(1, parts.reduce((a,p)=>a+p.bytes,0));
+
+    // Pie drawn as SVG arcs — no library, and it keeps its shape in both themes.
+    const R=52, C=60;
+    let angle=-Math.PI/2, slices='';
+    parts.forEach((p,i)=>{
+      const frac=p.bytes/total, sweep=frac*Math.PI*2;
+      const col=STORAGE_COLOURS[i%STORAGE_COLOURS.length];
+      if(frac>0.999){
+        slices=`<circle cx="${C}" cy="${C}" r="${R}" fill="${col}"/>`;
+      }else{
+        const x1=C+R*Math.cos(angle), y1=C+R*Math.sin(angle);
+        const x2=C+R*Math.cos(angle+sweep), y2=C+R*Math.sin(angle+sweep);
+        slices+=`<path d="M${C},${C} L${x1.toFixed(2)},${y1.toFixed(2)} `
+              + `A${R},${R} 0 ${sweep>Math.PI?1:0} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${col}"/>`;
+        angle+=sweep;
+      }
+    });
+
+    $('#storageBox').innerHTML =
+      `<dl class="kv">
+         <dt>location</dt><dd>${esc(r.path)} <span class="stat">(${esc(r.source)})</span></dd>
+         <dt>total size</dt><dd><b>${esc(r.total_human)}</b> in ${r.total_files} file(s)</dd>
+         <dt>free on disk</dt><dd>${esc(r.free_human)}</dd>
+       </dl>
+       <div class="storage-wrap">
+         <svg width="120" height="120" viewBox="0 0 120 120" role="img"
+              aria-label="index size breakdown">${slices}
+           <circle cx="${C}" cy="${C}" r="26" fill="var(--panel)"/>
+           <text x="${C}" y="${C-2}" text-anchor="middle" font-size="13" font-weight="600"
+                 fill="var(--fg)">${esc(r.total_human.split(' ')[0])}</text>
+           <text x="${C}" y="${C+12}" text-anchor="middle" font-size="9"
+                 fill="var(--dim)">${esc(r.total_human.split(' ')[1]||'')}</text>
+         </svg>
+         <div class="storage-legend">
+           ${parts.map((p,i)=>`<div>
+              <span class="sw" style="background:${STORAGE_COLOURS[i%STORAGE_COLOURS.length]}"></span>
+              <span>${esc(p.label)}</span>
+              <span class="stat">${esc(p.human)} · ${(p.bytes/total*100).toFixed(0)}%${p.files?` · ${p.files} file(s)`:''}</span>
+            </div>`).join('')}
+         </div>
+       </div>`;
+  }catch(e){ $('#storageBox').innerHTML=`<div class="stat">${esc(e.message)}</div>`; }
+}
+
+$('#changeLocation').onclick=async()=>{
+  const btn=$('#changeLocation'); btn.disabled=true; $('#storageNote').innerHTML='';
+  try{
+    const picked=await api('/api/pick-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(picked.cancelled) return;
+    const j=await api('/api/storage/location',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path:picked.path})});
+    $('#storageNote').innerHTML=`<div class="note">${esc(j.message)}</div>`;
+    loadStorage();
+  }catch(e){ $('#storageNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+  finally{ btn.disabled=false; }
+};
+
+$('#resetLocation').onclick=async()=>{
+  try{
+    const j=await api('/api/storage/location',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({reset:true})});
+    $('#storageNote').innerHTML=`<div class="note">${esc(j.message)}</div>`;
+    loadStorage();
+  }catch(e){ $('#storageNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+};
+
+$('#clearIndex').onclick=async()=>{
+  const n = (await api('/api/pipeline').catch(()=>({total:0}))).total || 0;
+  if(!confirm(`Remove all ${n} photo(s) from the index?\n\n`
+            + `Your photo files are NOT deleted — only what Ophotofinder has learned `
+            + `about them. Re-indexing will rebuild it.`)) return;
+  const btn=$('#clearIndex'); btn.disabled=true; $('#clearNote').textContent='clearing…';
+  try{
+    const j=await api('/api/index/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    $('#clearNote').textContent=`removed ${j.removed} photo(s) and ${j.thumbnails_removed} thumbnail(s)`;
+    libFacets=null;
+    loadSettings(); loadStorage(); refreshStatus();
+  }catch(e){ $('#clearNote').textContent=e.message; }
+  finally{ btn.disabled=false; }
+};
+
+$('#setVision').onchange=()=>{saveSettings({vision_model:$('#setVision').value}); showFit('#setVision','#visionFit','vision');};
+$('#setText').onchange=()=>{saveSettings({text_model:$('#setText').value}); showFit('#setText','#textFit','text');};
+$('#setAltOcr').onchange=()=>saveSettings({alt_ocr:$('#setAltOcr').value});
+$('#setCaption').onchange=()=>saveSettings({caption_enabled:$('#setCaption').checked});
+$('#setOcr').onchange=()=>saveSettings({ocr_enabled:$('#setOcr').checked});
+$('#autoUpgrade').onchange=()=>saveSettings({auto_upgrade:$('#autoUpgrade').checked});
+$('#watchEnabled').onchange=()=>saveSettings({watch_enabled:$('#watchEnabled').checked});
+$('#watchInterval').onchange=()=>saveSettings({watch_interval_minutes:parseInt($('#watchInterval').value)||30});
+
+$('#addFolder').onclick=async()=>{
+  const btn=$('#addFolder'); btn.disabled=true; btn.textContent='Waiting for the dialog…';
+  $('#folderNote').innerHTML='';
+  try{
+    const j=await api('/api/pick-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!j.cancelled) await folderAction('add', j.path, true);
+  }catch(e){ $('#folderNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+  finally{ btn.disabled=false; btn.textContent='＋ Add folder…'; }
+};
+
+$('#checkNow').onclick=async()=>{
+  try{ const j=await api('/api/watch/run',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+       renderFolders(j.watcher.folders.map(f=>({...f,exists:true})), j.watcher); }
+  catch(e){ $('#folderNote').innerHTML=`<div class="note err">${esc(e.message)}</div>`; }
+};
+
+$('#runUpgrade').onclick=async()=>{
+  $('#runUpgrade').disabled=true;
+  try{
+    await api('/api/upgrade',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({only:$('#upgradeOnly').value?[$('#upgradeOnly').value]:null})});
+    switchTab('index'); startPolling();
+  }catch(e){ $('#upgradeHint').textContent=e.message; $('#runUpgrade').disabled=false; }
+};
+
+refreshStatus(); setInterval(refreshStatus,15000);
+setInterval(()=>{ if(!$('#viewLibrary').classList.contains('hidden')) libTick(); }, 3000);
+// Keep "last checked / next check" ticking while Settings is open.
+setInterval(async()=>{
+  if($('#viewSettings').classList.contains('hidden')) return;
+  try{
+    const j=await api('/api/settings/folders');
+    renderFolders(j.folders, j.watcher);
+  }catch(e){}
+}, 10000);
+</script>
+</body>
+</html>
